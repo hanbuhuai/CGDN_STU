@@ -12,7 +12,7 @@ import tensorflow as tf
 import imageio
 from net import *
 
-EPOCHS = 100
+EPOCHS = 1
 BATCH_SIZE = 128
 LEARNING_RATE = 0.0002
 BETA_1 = 0.5
@@ -29,7 +29,8 @@ def train():
         image_data = imageio.imread(image)  # imread 利用 PIL 来读取图片数据
         data.append(image_data)
     input_data = np.array(data)
-
+    
+    
     # 将数据标准化成 [-1, 1] 的取值, 这也是 Tanh 激活函数的输出范围
     input_data = (input_data.astype(np.float32) - 127.5) / 127.5
 
@@ -54,7 +55,7 @@ def train():
     for epoch in range(EPOCHS):
         for index in range(int(input_data.shape[0] / BATCH_SIZE)):
             input_batch = input_data[index * BATCH_SIZE : (index + 1) * BATCH_SIZE]
-
+            
             # 连续型均匀分布的随机数据（噪声）
             random_data = np.random.uniform(-1, 1, size=(BATCH_SIZE, 100))
             # 生成器 生成的图片数据
@@ -62,9 +63,10 @@ def train():
 
             input_batch = np.concatenate((input_batch, generated_images))
             output_batch = [1] * BATCH_SIZE + [0] * BATCH_SIZE
+            ob = np.array(output_batch).reshape(-1,1)
 
             # 训练 判别器，让它具备识别不合格生成图片的能力
-            d_loss = d.train_on_batch(input_batch, output_batch)
+            d_loss = d.train_on_batch(input_batch, ob)
 
             # 当训练 生成器 时，让 判别器 不可被训练
             d.trainable = False
@@ -73,7 +75,9 @@ def train():
             random_data = np.random.uniform(-1, 1, size=(BATCH_SIZE, 100))
 
             # 训练 生成器，并通过不可被训练的 判别器 去判别
-            g_loss = d_on_g.train_on_batch(random_data, [1] * BATCH_SIZE)
+            ob = np.array([1] * BATCH_SIZE).reshape(-1,1)
+            
+            g_loss = d_on_g.train_on_batch(random_data, ob)
 
             # 恢复 判别器 可被训练
             d.trainable = True
