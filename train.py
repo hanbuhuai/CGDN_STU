@@ -4,130 +4,89 @@
 训练 DCGAN
 """
 
-import glob,os
-from PIL import Image
-import imageio
+import os
+import glob
 import numpy as np
-import tensorflow as ts
-#from matplotlib import pyplot as plt
+from scipy import misc
+import tensorflow as tf
+
 from net import *
-class train():
-    def __init__(self):
-        self.root_path = os.path.abspath(os.path.dirname(__file__))
-        self.img_path = "images"
-        self.img_data = self.load_imgs()
-        self.out_put_path = "output"
-        self.g = None
-        self.d = None
-        self.GAN = self.initGAN()
-        self.batch_size = 100
-        self.data_off_set = 0
-        self.epochs = 100 #训练100圈
-        self.testData = None
-    '''
-        数据加载&导出
-    '''
-    def load_imgs(self):#加载数据集
-        if os.path.exists(self.img_path):
-            data = []
-            for img in glob.glob(os.path.join(self.img_path,"*")):
-                data.append(imageio.imread(img))
-        else:
-            raise Exception("包含所有图片的 images 文件夹不在此目录下，请添加")
-        return self.imgs2data(data)
-    def imgs2data(self,imgs):#清理数据
-        imgs_data = np.array(imgs,dtype="float32")
-        return (imgs_data-127.5)/127.5
-    def data2imgs(self,img_data,key=None):#回为图片
-        if not key==None:
-            img_data = img_data[key]
-        data  = img_data*127.5+127.5
-        return data
-    def outputImg(self,img_data,fname):
-        Image.fromarray(img_data.astype(np.uint8)).save(os.path.join(self.out_put_path,fname))
-    def train_data_batch(self,batchSize):
-        st = self.data_off_set
-        total = self.img_data.shape[0]
-        if st>total:
-            print("训练数据集合归零")
-            self.data_off_set = 0
-            st = self.data_off_set
-        self.data_off_set = st+batchSize
-        data = self.img_data[st:batchSize]
-        label = np.array([1 for item in data])
-        return data,label
-    def train_blur_batch(self,batchSize):#混淆数据
-        self.g.trainable = False
-        g = self.g
-        random_data = np.random.uniform(-1, 1, size=(batchSize, 100))
-        data = g.predict(random_data, verbose=1)
-        label = np.array([0 for item in data])
-        return data,label
-    '''
-    加载网络
-    '''
-    def initGAN(self):
-        d = discriminator_model()
-        d.trainable = True
-        d_optimizero = tf.keras.optimizers.Adam(lr=0.0002,beta_1=0.5)
-        d.compile(loss="binary_crossentropy",optimizer=d_optimizero)
-        g = generatoer_model()
-        g.trainable = True
-        g_optimizero = tf.keras.optimizers.Adam(lr=0.0002,beta_1=0.5)
-        g.compile(loss="binary_crossentropy",optimizer=g_optimizero)
-        GNA = generator_containing_discriminator(g,d)
-        GNA.trainable =True
-        GNA.compile(loss="binary_crossentropy",optimizer=g_optimizero)
-        if os.path.isfile(os.path.join(self.root_path,'discriminator_weight')):
-            d.load_weights('discriminator_weight')
-        if os.path.isfile(os.path.join(self.root_path,'generator_weight')):
-            g.load_weights('generator_weight')
-        self.d = d
-        self.g = g
-        return GNA
-    def trainDiscriminator(self):#训练判别器
-        self.d.trainable = True
-        self.g.trainable = False
-        data_t,label_t = self.train_data_batch(self.batch_size)
-        data_f,label_f = self.train_blur_batch(self.batch_size)
-        data = np.concatenate((data_t,data_f))
-        label = np.concatenate((label_t,label_f))
-        loss = self.d.train_on_batch(data, label)
-        return loss
-    def trainGenerater(self):
-        self.d.trainable = False
-        self.g.trainable = True
-        random_data = np.random.uniform(-1, 1, size=(self.batch_size, 100))
-        label = [1 for item in random_data]
-        loss = self.GAN.train_on_batch(random_data,label)
-        return loss
-    def run(self):
-        for e in range(0,self.epochs):
-            d_loss=self.trainDiscriminator()
-            msg = "[{e}]_<dloss:{loss}>".format(e=e,loss=d_loss)
-            print(msg,end=';')
-            g_loss=self.trainGenerater()
-            msg = "[{e}]_<gloss:{loss}>".format(e=e,loss=g_loss)
-            print(msg)
-            if e % 10 == 9:
-                self.g.save_weights("generator_weight", True)
-                self.d.save_weights("discriminator_weight", True)
-    def test(self):
-        d_loss=self.trainDiscriminator()
-        msg = "[{e}]_<dloss:{loss}>".format(e=1,loss=d_loss)
-        print(msg)
-        self.d.save_weights("discriminator_weight", True)
-        
 
-                
-        
-        
-            
-                
-            
+EPOCHS = 100
+BATCH_SIZE = 128
+LEARNING_RATE = 0.0002
+BETA_1 = 0.5
+
+def train():
+    # 确保包含所有图片的 images 文件夹在所有 Python 文件的同级目录下
+    # 当然了，你也可以自定义文件夹名和路径
+    if not os.path.exists("images"):
+        raise Exception("包含所有图片的 images 文件夹不在此目录下，请添加")
+
+    # 获取训练数据
+    data = []
+    for image in glob.glob("images/*"):
+        image_data = misc.imread(image)  # imread 利用 PIL 来读取图片数据
+        data.append(image_data)
+    input_data = np.array(data)
+
+    # 将数据标准化成 [-1, 1] 的取值, 这也是 Tanh 激活函数的输出范围
+    input_data = (input_data.astype(np.float32) - 127.5) / 127.5
+
+    # 构造 生成器 和 判别器
+    g = generator_model()
+    d = discriminator_model()
+
+    # 构建 生成器 和 判别器 组成的网络模型
+    d_on_g = generator_containing_discriminator(g, d)
+
+    # 优化器用 Adam Optimizer
+    g_optimizer = tf.keras.optimizers.Adam(lr=LEARNING_RATE, beta_1=BETA_1)
+    d_optimizer = tf.keras.optimizers.Adam(lr=LEARNING_RATE, beta_1=BETA_1)
+
+    # 配置 生成器 和 判别器
+    g.compile(loss="binary_crossentropy", optimizer=g_optimizer)
+    d_on_g.compile(loss="binary_crossentropy", optimizer=g_optimizer)
+    d.trainable = True
+    d.compile(loss="binary_crossentropy", optimizer=d_optimizer)
+
+    # 开始训练
+    for epoch in range(EPOCHS):
+        for index in range(int(input_data.shape[0] / BATCH_SIZE)):
+            input_batch = input_data[index * BATCH_SIZE : (index + 1) * BATCH_SIZE]
+
+            # 连续型均匀分布的随机数据（噪声）
+            random_data = np.random.uniform(-1, 1, size=(BATCH_SIZE, 100))
+            # 生成器 生成的图片数据
+            generated_images = g.predict(random_data, verbose=0)
+
+            input_batch = np.concatenate((input_batch, generated_images))
+            output_batch = [1] * BATCH_SIZE + [0] * BATCH_SIZE
+
+            # 训练 判别器，让它具备识别不合格生成图片的能力
+            d_loss = d.train_on_batch(input_batch, output_batch)
+
+            # 当训练 生成器 时，让 判别器 不可被训练
+            d.trainable = False
+
+            # 重新生成随机数据。很关键
+            random_data = np.random.uniform(-1, 1, size=(BATCH_SIZE, 100))
+
+            # 训练 生成器，并通过不可被训练的 判别器 去判别
+            g_loss = d_on_g.train_on_batch(random_data, [1] * BATCH_SIZE)
+
+            # 恢复 判别器 可被训练
+            d.trainable = True
+
+            # 打印损失
+            print("Epoch {}, 第 {} 步, 生成器的损失: {:.3f}, 判别器的损失: {:.3f}".format(epoch, index, g_loss, d_loss))
+
+        # 保存 生成器 和 判别器 的参数
+        # 大家也可以设置保存时名称不同（比如后接 epoch 的数字），参数文件就不会被覆盖了
+        if epoch % 10 == 9:
+            g.save_weights("generator_weight", True)
+            d.save_weights("discriminator_weight", True)
+
+
 if __name__ == "__main__":
-    hd = train()
-    hd.run()
-    
-
-
+    train()

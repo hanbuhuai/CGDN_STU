@@ -53,7 +53,7 @@ def discriminator_model():
     model.add(keras.layers.Dense(1))
     model.add(keras.layers.Activation('sigmoid'))
     return model
-def generatoer_model():
+def generator_model():
     model = keras.Sequential()
     model.add(keras.layers.Dense(input_dim=100, units=1024))
     model.add(keras.layers.Activation('tanh'))
