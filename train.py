@@ -6,13 +6,14 @@
 
 import glob,os
 from PIL import Image
-from scipy import misc
+import imageio
 import numpy as np
 import tensorflow as ts
 #from matplotlib import pyplot as plt
 from net import *
 class train():
     def __init__(self):
+        self.root_path = os.path.abspath(os.path.dirname(__file__))
         self.img_path = "images"
         self.img_data = self.load_imgs()
         self.out_put_path = "output"
@@ -30,7 +31,7 @@ class train():
         if os.path.exists(self.img_path):
             data = []
             for img in glob.glob(os.path.join(self.img_path,"*")):
-                data.append(misc.imread(img))
+                data.append(imageio.imread(img))
         else:
             raise Exception("包含所有图片的 images 文件夹不在此目录下，请添加")
         return self.imgs2data(data)
@@ -67,15 +68,22 @@ class train():
     '''
     def initGAN(self):
         d = discriminator_model()
+        d.trainable = True
         d_optimizero = tf.keras.optimizers.Adam(lr=0.0002,beta_1=0.5)
         d.compile(loss="binary_crossentropy",optimizer=d_optimizero)
-        self.d = d
         g = generatoer_model()
+        g.trainable = True
         g_optimizero = tf.keras.optimizers.Adam(lr=0.0002,beta_1=0.5)
         g.compile(loss="binary_crossentropy",optimizer=g_optimizero)
-        self.g = g
         GNA = generator_containing_discriminator(g,d)
+        GNA.trainable =True
         GNA.compile(loss="binary_crossentropy",optimizer=g_optimizero)
+        if os.path.isfile(os.path.join(self.root_path,'discriminator_weight')):
+            d.load_weights('discriminator_weight')
+        if os.path.isfile(os.path.join(self.root_path,'generator_weight')):
+            g.load_weights('generator_weight')
+        self.d = d
+        self.g = g
         return GNA
     def trainDiscriminator(self):#训练判别器
         self.d.trainable = True
