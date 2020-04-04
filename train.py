@@ -12,7 +12,7 @@ import tensorflow as tf
 import imageio
 from net import *
 
-EPOCHS = 1
+EPOCHS = 100
 BATCH_SIZE = 128
 LEARNING_RATE = 0.0002
 BETA_1 = 0.5
