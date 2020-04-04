@@ -7,9 +7,9 @@
 import os
 import glob
 import numpy as np
-from scipy import misc
-import tensorflow as tf
 
+import tensorflow as tf
+import imageio
 from net import *
 
 EPOCHS = 100
@@ -26,7 +26,7 @@ def train():
     # 获取训练数据
     data = []
     for image in glob.glob("images/*"):
-        image_data = misc.imread(image)  # imread 利用 PIL 来读取图片数据
+        image_data = imageio.imread(image)  # imread 利用 PIL 来读取图片数据
         data.append(image_data)
     input_data = np.array(data)
 
