@@ -3,12 +3,15 @@ import os,glob,imageio,time
 import numpy as np
 from net import *
 from tensorflow import keras
+from PIL import Image
 class Trainer():
     def __init__(self):
         #学习参数设置
+        
         self.BATCH_SIZE = 128
         self.LEARNING_RATE = 0.0002
         self.BETA_1 = 0.5
+        self.PREVIEW_SIZE = 10 #生成10个预览 
         #根目录
         self.dRoot = os.path.abspath(os.path.dirname(__file__))
         #data_set 目录
@@ -85,14 +88,50 @@ class Trainer():
         self.m_d.trainable = True
         dloss=self.m_d.train_on_batch(x,y)
         return dloss
-    def test(self):
-        self.loadImgs().initModel()
-        for i in range(100):
-            dloss=self.trainDiscriminator()
-            gloss=self.trainGenerator()
-            
-            msg = "{:04d}_生成器的损失: {:.3f}, 判别器的损失: {:.3f}".format(i,gloss,dloss)
-            print(msg)
+    def load_weights(self):
+        if os.path.isfile(self.p_g_weight):
+            self.m_g.load_weights(self.p_g_weight)
+        if os.path.isfile(self.p_d_weight):
+            self.m_d.load_weights(self.p_d_weight)
+    def save_weights(self):
+        self.m_g.save_weights(self.p_g_weight,True)
+        self.m_d.save_weights(self.p_g_weight,True)
+    def mk_preview(self,fname):
+        path = os.path.join(self.p_output,"ep_{ep}".format(ep=self.cur_b))
+        if not os.path.isdir(path):
+            os.makedirs(path)
+        #开始生成图片
+        x = np.random.uniform(-1, 1, size=(self.PREVIEW_SIZE, 100))
+        images=self.m_g.predict(x,verbose=1)
+        for i in range(self.PREVIEW_SIZE):
+            image = images[i] * 127.5 + 127.5
+            f_name = os.path.join(path,fname.format(pk=i))
+            Image.fromarray(image.astype(np.uint8)).save(f_name)
+        return self
+    def run(self,run_cfg):
+        dloss = self.trainDiscriminator()
+        gloss = self.trainGenerator()
+        print("第 {} 步, 生成器的损失: {:.3f}, 判别器的损失: {:.3f}".format(self.cur_b, gloss, dloss))
+        if self.cur_b%10==9:
+            self.save_weights()
+        if self.cur_b%1000==999:
+            self.mk_preview("{pk}.png")
+        '''
+            循环计数
+        '''
+        stop_set = True
+        if 'epochs' in run_cfg:#定圈训练
+            stop_set = run_cfg['epochs']<self.cur_b
+        if 'endTime' in run_cfg:#定时训练
+            stop_set = run_cfg['endTime']>time.time()
+        if stop_set:#执行完成
+            self.save_weights()
+        else:#继续执行
+            self.run(run_cfg)
+        
+
+
+    
 if __name__ == "__main__":
     hd = Trainer()
-    hd.test()
+    hd.loadImgs().initModel().load_weights().run({"endTime":time.time+60*60*3})
