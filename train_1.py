@@ -88,8 +88,9 @@ class Trainer():
         for i in range(100):
             dloss=self.trainDiscriminator()
             gloss=self.trainGenerator()
-            msg = "生成器损失"
-
+            
+            msg = "{:04d}_生成器的损失: {:.3f}, 判别器的损失: {:.3f}".format(i,gloss,dloss)
+            print(msg)
 if __name__ == "__main__":
     hd = Trainer()
     hd.test()
