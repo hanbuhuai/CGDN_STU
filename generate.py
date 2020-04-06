@@ -14,7 +14,7 @@ LEARNING_RATE = 0.0002
 BETA_1 = 0.5
 def generate():
     # 构造生成器
-    g = generatoer_model()
+    g = generator_model()
 
     # 配置 生成器
     g.compile(loss="binary_crossentropy", optimizer=tf.keras.optimizers.Adam(lr=LEARNING_RATE, beta_1=BETA_1))
