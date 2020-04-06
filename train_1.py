@@ -93,9 +93,11 @@ class Trainer():
             self.m_g.load_weights(self.p_g_weight)
         if os.path.isfile(self.p_d_weight):
             self.m_d.load_weights(self.p_d_weight)
+        return self
     def save_weights(self):
         self.m_g.save_weights(self.p_g_weight,True)
         self.m_d.save_weights(self.p_g_weight,True)
+        return self
     def mk_preview(self,fname):
         path = os.path.join(self.p_output,"ep_{ep}".format(ep=self.cur_b))
         if not os.path.isdir(path):
@@ -108,7 +110,7 @@ class Trainer():
             f_name = os.path.join(path,fname.format(pk=i))
             Image.fromarray(image.astype(np.uint8)).save(f_name)
         return self
-    def run(self,run_cfg):
+    def run(self,endTime=False,epochs=False):
         dloss = self.trainDiscriminator()
         gloss = self.trainGenerator()
         print("第 {} 步, 生成器的损失: {:.3f}, 判别器的损失: {:.3f}".format(self.cur_b, gloss, dloss))
@@ -120,18 +122,20 @@ class Trainer():
             循环计数
         '''
         stop_set = True
-        if 'epochs' in run_cfg:#定圈训练
-            stop_set = run_cfg['epochs']<self.cur_b
-        if 'endTime' in run_cfg:#定时训练
-            stop_set = run_cfg['endTime']>time.time()
+        if epochs:
+            stop_set = epochs>self.cur_b
+        if endTime:
+            stop_set = endTime>time.time()
+
         if stop_set:#执行完成
             self.save_weights()
         else:#继续执行
-            self.run(run_cfg)
+            self.run(endTime,epochs)
         
 
 
     
 if __name__ == "__main__":
     hd = Trainer()
-    hd.loadImgs().initModel().load_weights().run({"endTime":time.time+60*60*3})
+    etime = 3*60*60+time.time()
+    hd.loadImgs().initModel().load_weights().run(endTime=etime)
