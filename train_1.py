@@ -40,8 +40,10 @@ class Trainer():
         return self
     def data_batch(self):
         #获取真数据
+        d_len = self.data_set.shape[0]
         bsize = self.BATCH_SIZE
-        cur_b = self.cur_b%bsize
+        max_cur_b = d_len//bsize
+        cur_b = self.cur_b%max_cur_b
         st = cur_b*bsize
         cur_b+=1
         ed = cur_b*bsize
@@ -53,7 +55,7 @@ class Trainer():
         x_f = self.m_g.predict(x_f_d,verbose=0)
         x = np.concatenate((x_t,x_f))
         y = np.concatenate((y_t,y_f))
-        self.cur_b = cur_b
+        self.cur_b = self.cur_b+1
         return x,y
     def initModel(self):#初始化模型
         #生成器配置
