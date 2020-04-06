@@ -41,7 +41,7 @@ class Trainer():
     def data_batch(self):
         #获取真数据
         bsize = self.BATCH_SIZE
-        cur_b = self.cur_b
+        cur_b = self.cur_b%bsize
         st = cur_b*bsize
         cur_b+=1
         ed = cur_b*bsize
@@ -88,7 +88,7 @@ class Trainer():
         for i in range(100):
             dloss=self.trainDiscriminator()
             gloss=self.trainGenerator()
-            print(dloss,gloss)
+            msg = "生成器损失"
 
 if __name__ == "__main__":
     hd = Trainer()
